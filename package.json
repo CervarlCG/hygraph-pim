@@ -1,8 +1,8 @@
 {
-  "name": "medusa-starter-default",
+  "name": "medusa-hygraph-pim",
   "version": "0.0.1",
-  "description": "A starter for Medusa projects.",
-  "author": "Sebastian Rindom <skrindom@gmail.com>",
+  "description": "A PIM catcher for hygraph.",
+  "author": "Jesus Cervantes <jesus.cervarl@gmail.com>",
   "license": "MIT",
   "keywords": [
     "sqlite",

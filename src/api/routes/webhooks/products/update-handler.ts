@@ -1,6 +1,6 @@
 import { HygraphProduct } from "common/interfaces/hygraph-product";
 import { Request, Response } from "express";
-import HygraphService from "services/hygraphService";
+import HygraphService from "services/hygraph";
 
 export default async (req: Request, res: Response): Promise<void> => {
   const product: HygraphProduct.Payload = req.body;

@@ -11,9 +11,10 @@ export function getWebhooksRouter(): Router {
     wrapHandler(updateHandler)
   );
 
-  webhooksRouter.get("webhooks/test", (req: Request, res: Response) =>
-    res.send({ success: true })
-  );
+  webhooksRouter.get("/webhooks/test", (req: Request, res: Response) => {
+    req.scope.resolve("hygraphService");
+    res.send({ success: true });
+  });
 
   return webhooksRouter;
 }

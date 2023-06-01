@@ -14,10 +14,7 @@
   ],
   "scripts": {
     "compile": "tsc -p tsconfig.json",
-    "prepare": "cross-env NODE_ENV=production npm run compile && npm run build",
-    "test": "jest --passWithNoTests src",
-    "build": "babel dist --out-dir . --ignore '**/__tests__','**/__mocks__'",
-    "watch": "babel -w src --out-dir . --ignore '**/__tests__','**/__mocks__'"
+    "watch": "tsc --watch"
   },
   "dependencies": {
     "body-parser": "^1.19.0",

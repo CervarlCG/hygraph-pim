@@ -17,9 +17,11 @@
     "watch": "tsc --watch"
   },
   "dependencies": {
+    "@hygraph/management-sdk": "^1.2.1",
     "body-parser": "^1.19.0",
     "cors": "^2.8.5",
     "express": "^4.17.2",
+    "graphql-request": "^6.1.0",
     "medusa-interfaces": "^1.3.7",
     "typeorm": "^0.3.16"
   },

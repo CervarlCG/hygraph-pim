@@ -8,40 +8,52 @@ import {
   TransactionBaseService,
 } from "@medusajs/medusa";
 import { ICacheService } from "@medusajs/types";
-import { HygraphProduct } from "common/interfaces/hygraph-product";
+import { HygraphProduct } from "../common/interfaces/hygraph-product";
+import {
+  HygraphServiceContainer,
+  HygraphServiceOptions,
+} from "../common/interfaces/hygraph-service";
+import { GET_ASSET } from "../common/queries/assets";
+import { request } from "graphql-request";
+import { RequestDocument } from "graphql-request";
 
 export default class HygraphService extends TransactionBaseService {
   productService: ProductService;
   productVariantService: ProductVariantService;
   shippingProfileService: ShippingProfileService;
   cacheService: ICacheService;
+  options: HygraphServiceOptions;
   baseCacheIdentifier = "hygraph_pim";
 
-  constructor({
-    productService,
-    productVariantService,
-    shippingProfileService,
-    cacheService,
-  }: {
-    productService: ProductService;
-    productVariantService: ProductVariantService;
-    shippingProfileService: ShippingProfileService;
-    cacheService: ICacheService;
-  }) {
-    super({ productService, productVariantService, shippingProfileService });
+  constructor(
+    container: HygraphServiceContainer,
+    options: HygraphServiceOptions
+  ) {
+    super(container);
 
-    this.productService = productService;
-    this.productVariantService = productVariantService;
-    this.shippingProfileService = shippingProfileService;
-    this.cacheService = cacheService;
+    this.productService = container.productService;
+    this.productVariantService = container.productVariantService;
+    this.shippingProfileService = container.shippingProfileService;
+    this.cacheService = container.cacheService;
+    this.options = options;
   }
 
+  /**
+   * Check if a product can be blocked to update it and prevent another update via the hook
+   * @param action The action key
+   * @param key The identifier key
+   */
   async canBlockAction(action: string, key: string) {
     const cacheKey = `${this.baseCacheIdentifier}_${action}_${key}`;
     if ((await this.cacheService.get(cacheKey)) === "yes") throw new Error();
     await this.cacheService.set(key, "yes", 10);
   }
 
+  /**
+   * Unblock the product
+   * @param action The action key
+   * @param key The identifier key
+   */
   async unblockAction(action: string, key: string) {
     const cacheKey = `${this.baseCacheIdentifier}_${action}_${key}`;
     await this.cacheService.invalidate(cacheKey);
@@ -114,7 +126,33 @@ export default class HygraphService extends TransactionBaseService {
     product: Product,
     hygraphProduct: HygraphProduct.Data
   ) {
+    await this.updateProductThumbnail(product, hygraphProduct);
     return await this.updateProductOptions(product, hygraphProduct);
+  }
+
+  /**
+   * Updated the product thumbail
+   * @param product The product object
+   * @param hygraphProduct The updated product
+   */
+  async updateProductThumbnail(
+    product: Product,
+    hygraphProduct: HygraphProduct.Data
+  ) {
+    if (product.metadata.hygraphThumbnailId === hygraphProduct.thumbnail.id)
+      return;
+
+    const thumbnail: any = await this.request(GET_ASSET, {
+      id: hygraphProduct.thumbnail.id,
+    }).catch((err) => err);
+
+    if (thumbnail.asset?.url)
+      await this.productService.update(product.id, {
+        thumbnail: thumbnail.asset.url,
+        metadata: {
+          hygraphThumbnailId: hygraphProduct.thumbnail.id,
+        },
+      });
   }
 
   /**
@@ -181,6 +219,9 @@ export default class HygraphService extends TransactionBaseService {
         variantionsToDelete.push(productVariation.id);
     }
 
+    if (variantionsToDelete.length)
+      await this.productVariantService.delete(variantionsToDelete);
+
     for (const hygraphVariation of hygraphVariations) {
       const props = {
         title: hygraphVariation.customTitle || hygraphVariation.sku,
@@ -203,9 +244,6 @@ export default class HygraphService extends TransactionBaseService {
         });
       else await this.productVariantService.update(variation.id, props);
     }
-
-    if (variantionsToDelete.length)
-      await this.productVariantService.delete(variantionsToDelete);
   }
 
   /**
@@ -237,5 +275,11 @@ export default class HygraphService extends TransactionBaseService {
       }),
       {}
     );
+  }
+
+  request(document: RequestDocument, variables?: Record<string, any>) {
+    return request(this.options.apiUrl, document, variables, {
+      Authorization: `bearer ${this.options.apiAuthorization}`,
+    });
   }
 }

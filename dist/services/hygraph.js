@@ -1,25 +1,39 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const medusa_1 = require("@medusajs/medusa");
+const assets_1 = require("../common/queries/assets");
+const graphql_request_1 = require("graphql-request");
 class HygraphService extends medusa_1.TransactionBaseService {
     productService;
     productVariantService;
     shippingProfileService;
     cacheService;
+    options;
     baseCacheIdentifier = "hygraph_pim";
-    constructor({ productService, productVariantService, shippingProfileService, cacheService, }) {
-        super({ productService, productVariantService, shippingProfileService });
-        this.productService = productService;
-        this.productVariantService = productVariantService;
-        this.shippingProfileService = shippingProfileService;
-        this.cacheService = cacheService;
+    constructor(container, options) {
+        super(container);
+        this.productService = container.productService;
+        this.productVariantService = container.productVariantService;
+        this.shippingProfileService = container.shippingProfileService;
+        this.cacheService = container.cacheService;
+        this.options = options;
     }
+    /**
+     * Check if a product can be blocked to update it and prevent another update via the hook
+     * @param action The action key
+     * @param key The identifier key
+     */
     async canBlockAction(action, key) {
         const cacheKey = `${this.baseCacheIdentifier}_${action}_${key}`;
         if ((await this.cacheService.get(cacheKey)) === "yes")
             throw new Error();
         await this.cacheService.set(key, "yes", 10);
     }
+    /**
+     * Unblock the product
+     * @param action The action key
+     * @param key The identifier key
+     */
     async unblockAction(action, key) {
         const cacheKey = `${this.baseCacheIdentifier}_${action}_${key}`;
         await this.cacheService.invalidate(cacheKey);
@@ -81,7 +95,27 @@ class HygraphService extends medusa_1.TransactionBaseService {
      * @param hygraphProduct The product data
      */
     async updateAdminProduct(product, hygraphProduct) {
+        await this.updateProductThumbnail(product, hygraphProduct);
         return await this.updateProductOptions(product, hygraphProduct);
+    }
+    /**
+     * Updated the product thumbail
+     * @param product The product object
+     * @param hygraphProduct The updated product
+     */
+    async updateProductThumbnail(product, hygraphProduct) {
+        if (product.metadata.hygraphThumbnailId === hygraphProduct.thumbnail.id)
+            return;
+        const thumbnail = await this.request(assets_1.GET_ASSET, {
+            id: hygraphProduct.thumbnail.id,
+        }).catch((err) => err);
+        if (thumbnail.asset?.url)
+            await this.productService.update(product.id, {
+                thumbnail: thumbnail.asset.url,
+                metadata: {
+                    hygraphThumbnailId: hygraphProduct.thumbnail.id,
+                },
+            });
     }
     /**
      * Add and remove optiosn based to hygraph update
@@ -119,6 +153,8 @@ class HygraphService extends medusa_1.TransactionBaseService {
             if (!allowedSku.includes(productVariation.sku))
                 variantionsToDelete.push(productVariation.id);
         }
+        if (variantionsToDelete.length)
+            await this.productVariantService.delete(variantionsToDelete);
         for (const hygraphVariation of hygraphVariations) {
             const props = {
                 title: hygraphVariation.customTitle || hygraphVariation.sku,
@@ -140,8 +176,6 @@ class HygraphService extends medusa_1.TransactionBaseService {
             else
                 await this.productVariantService.update(variation.id, props);
         }
-        if (variantionsToDelete.length)
-            await this.productVariantService.delete(variantionsToDelete);
     }
     /**
      * Convert the json variation prices to a native MoneyAmount object
@@ -168,6 +202,11 @@ class HygraphService extends medusa_1.TransactionBaseService {
             ...acc,
             [opt.title]: opt.id,
         }), {});
+    }
+    request(document, variables) {
+        return (0, graphql_request_1.request)(this.options.apiUrl, document, variables, {
+            Authorization: `bearer ${this.options.apiAuthorization}`,
+        });
     }
 }
 exports.default = HygraphService;

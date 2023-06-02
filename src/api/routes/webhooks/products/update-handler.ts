@@ -6,7 +6,7 @@ export default async (req: Request, res: Response): Promise<void> => {
   const product: HygraphProduct.Payload = req.body;
   const hygraphService: HygraphService = req.scope.resolve("hygraphService");
 
-  if (product.operation !== "update") {
+  if (product.operation !== "publish") {
     res.status(400).send("Invalid operation");
     return;
   }

@@ -139,7 +139,10 @@ export default class HygraphService extends TransactionBaseService {
     product: Product,
     hygraphProduct: HygraphProduct.Data
   ) {
-    if (product.metadata.hygraphThumbnailId === hygraphProduct.thumbnail.id)
+    if (
+      !hygraphProduct.thumbnail ||
+      product.metadata.hygraphThumbnailId === hygraphProduct.thumbnail.id
+    )
       return;
 
     const thumbnail: any = await this.request(GET_ASSET, {

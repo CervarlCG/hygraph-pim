@@ -104,7 +104,8 @@ class HygraphService extends medusa_1.TransactionBaseService {
      * @param hygraphProduct The updated product
      */
     async updateProductThumbnail(product, hygraphProduct) {
-        if (product.metadata.hygraphThumbnailId === hygraphProduct.thumbnail.id)
+        if (!hygraphProduct.thumbnail ||
+            product.metadata.hygraphThumbnailId === hygraphProduct.thumbnail.id)
             return;
         const thumbnail = await this.request(assets_1.GET_ASSET, {
             id: hygraphProduct.thumbnail.id,

@@ -16,7 +16,7 @@ export namespace HygraphProduct {
     sku: string;
     stage: string;
     subtitle: string;
-    thumbnail: Thumbnail;
+    thumbnail?: Thumbnail;
     title: string;
     updatedAt: string;
     updatedBy: UpdatedBy;
